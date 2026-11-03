@@ -1,0 +1,8 @@
+AirGesture — 隔空手势
+Author : 7wiligh7
+License: MIT (see LICENSE)
+Privacy: local-only processing, no INTERNET permission (see PRIVACY.md)
+
+This file is an authorship mark embedded in every APK build.
+If you received this APK from an unofficial source, verify the SHA-256
+published on the official release page.
