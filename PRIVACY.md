@@ -17,7 +17,7 @@ AirGesture（包名 `com.airgesture`）是一个**完全本地运行**的隔空�
 | 手部关键点 / 手势结果 | 触发滑动、点击、返回 | 否 |
 | 应用设置 | 仅当前进程内存 | 否 |
 
-- 未申请 `INTERNET` 权限，应用在系统层面**无法联网**。
+- 未申请 `INTERNET` 权限，应用在系统层面**无法联网**。MediaPipe 的 AAR 会合入网络权限，本项目已在 Manifest 中用 `tools:node="remove"` 显式移除，最终 APK 不含 `INTERNET` / `ACCESS_NETWORK_STATE`。
 - 不录制视频、不截图、不写入相册或任何文件。
 - 不收集设备标识符、位置、通讯录、剪贴板、使用统计。
 - 不包含广告、分析、崩溃上报等第三方 SDK。

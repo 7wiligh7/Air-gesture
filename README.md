@@ -52,7 +52,7 @@
 ```powershell
 # 项目根目录执行（JAVA_HOME 必须指向 JDK 21，Java 25 不被 Gradle 8.9 支持）
 gradlew.bat assembleDebug --no-daemon
-# 产物：app\build\outputs\apk\debug\app-debug.apk（arm64-v8a，约 19.6MB）
+# 产物：app\build\outputs\apk\debug\app-debug.apk（arm64-v8a，约 21.5MB）
 ```
 
 > 已配置 `abiFilters 'arm64-v8a'`：APK 只含真机架构（35.2MB → 19.6MB）；代价是 x86 模拟器装不了。
@@ -138,7 +138,7 @@ adb logcat -s HandGestureDetector:D CameraManager:D AirGestureService:D
 
 ## 隐私
 
-- 未申请 `INTERNET` 权限：应用在系统层面**无法联网**
+- 未申请 `INTERNET` 权限：应用在系统层面**无法联网**（MediaPipe AAR 合入的网络权限已在 Manifest 中显式移除）
 - 相机画面仅用于本地 MediaPipe 推理，不录制、不保存、不上传
 - 无障碍服务只注入手势，不读取窗口内容、不监听按键
 
