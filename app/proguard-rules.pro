@@ -1,21 +1,13 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# AirGesture release 规则
+# 第三方 AAR（MediaPipe / CameraX / AndroidX）自带 consumer 规则，这里只补充本项目需要。
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# release 移除调试日志（v/d/i），保留 w/e 用于排障
+-assumenosideeffects class android.util.Log {
+    public static *** v(...);
+    public static *** d(...);
+    public static *** i(...);
+}
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
-
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renameSourceAttribute SourceFile
+# 保留行号，便于用 mapping.txt 还原崩溃堆栈
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile

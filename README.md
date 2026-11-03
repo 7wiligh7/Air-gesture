@@ -154,7 +154,7 @@ gradlew.bat assembleDebug --no-daemon
 
 # Release 包（需要本地 keystore.properties，见 RELEASING.md）
 gradlew.bat assembleRelease --no-daemon
-# 产物：app\build\outputs\apk\release\app-release.apk（约 17.4MB）
+# 产物：app\build\outputs\apk\release\app-release.apk（约 12.1MB，R8 混淆 + 资源压缩）
 ```
 
 > `abiFilters 'arm64-v8a'`：APK 只含真机架构，代价是 x86 模拟器装不了。
@@ -235,6 +235,7 @@ adb logcat -s HandGestureDetector:D CameraManager:D AirGestureService:D
   - 开源整理：MIT LICENSE、隐私说明、第三方声明、SPDX 代码头、APK 内作者记号
   - 隐私加固：显式移除 MediaPipe 合入的 `INTERNET` / `ACCESS_NETWORK_STATE`，`allowBackup=false`
   - 发布签名：独立 release keystore（RSA 4096，`CN=7wiligh7`）
+  - Release 开启 R8 混淆 + 资源压缩，移除 `v/d/i` 调试日志（保留 `w/e` 排障）
 - **1.1.0**（versionCode 5）
   - 隔空挥动 v1.3：官方规格对齐、回程消除、慢挥/跳变防护
   - OK 手势收紧、握拳 5 指严格化、熄屏暂停、远距门控、多手选择
@@ -249,8 +250,14 @@ adb logcat -s HandGestureDetector:D CameraManager:D AirGestureService:D
 - [RELEASING.md](RELEASING.md) — 维护者构建与发布流程
 - [PROGRESS.md](PROGRESS.md) — v1.2.0 交付记录（历史）
 
-## 许可证
+## 版权声明与许可证
 
-Copyright (c) 2026 **7wiligh7**
+Copyright (c) 2026 **7wiligh7**. All rights reserved.
 
-以 [MIT License](LICENSE) 开源。
+本仓库代码以 [MIT License](LICENSE) 授权：允许复制、修改、再发布，但必须保留版权声明与许可证文本。
+
+**官方版本标识**
+
+- 应用名称 `AirGesture`、图标与作者署名 `7wiligh7` 用于标识官方版本
+- 官方 APK 使用证书 SHA-256 `951013058dd41b353e82184346b891a7991715534432810a9cc39661f1c66063` 签名
+- fork 或再发布时请保留本声明，并避免让用户误认为是官方版本

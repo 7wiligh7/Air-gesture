@@ -47,6 +47,8 @@ keyPassword=your-key-password
 
    预期：证书主体 `CN=7wiligh7`；权限只有 CAMERA / 前台服务 / 通知 / 悬浮窗，**没有 INTERNET**。
 
+   Release 已开启 R8（混淆 + 资源压缩），并移除 `v/d/i` 调试日志。混淆映射在 `app\build\outputs\mapping\release\mapping.txt`，请归档到仓库外，用于还原崩溃堆栈；**不要上传 mapping.txt**。
+
 4. 计算校验和：
 
    ```powershell
