@@ -30,7 +30,7 @@ android {
         minSdk 26
         targetSdk 35
         versionCode 6
-        versionName "1.1.1-mi14"
+        versionName "1.1.1"
 
         // 作者记号（BuildConfig.AUTHOR / BUILD_TIME / GIT_COMMIT），构建时写入
         buildConfigField "String", "AUTHOR", "\"7wiligh7\""
