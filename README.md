@@ -229,6 +229,10 @@ adb logcat -s HandGestureDetector:D CameraManager:D AirGestureService:D
 
 ## 版本记录
 
+- **1.1.2**（versionCode 7）
+  - 挥动方向改为**食/中/环三指一起投票**（单位方向平均 + 长度均值），指尖朝下更稳
+  - 上一段速度阈值单独收紧到 **9.8**，并要求连续 2 个 ~100ms 样本达标；下一段保持 9.0
+  - `AXIS_DOM` 1.3 → 1.15、`AXIS_MIN` 0.10 → 0.08；投影锚点改为三指指尖均值
 - **1.1.1**（versionCode 6）
   - 多手索引修复：`worldLandmarks` / `handedness` 与主手同索引，修复左右手感不一致
   - 日志增强：`multi_hand` 输出每只手标签/置信度，`wave` / `wave arm` 输出 `hand=`

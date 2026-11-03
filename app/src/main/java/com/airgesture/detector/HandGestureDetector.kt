@@ -118,8 +118,8 @@ class HandGestureDetector(
         private const val ANG_STEP_MAX = 12.0f  // 停留期法向帧间最大角变化（度）— 实测 dStep 达 4.3-4.7，4.0 太紧
         private const val DWELL_FRAMES = 5      // @16fps ≈ 300ms「稍作停留」— 8 帧武装太慢
         private const val DWELL_MOVE_MAX = 0.12f // 停留期掌心漂移上限（画面宽归一化）— 0.06 太严，手微抖就重置
-        private const val AXIS_MIN = 0.10f      // 指尖轴最短长度（画面宽归一化），太短方向不可信
-        private const val AXIS_DOM = 1.3f       // 指尖轴主方向占比
+        private const val AXIS_MIN = 0.08f      // 指尖轴最短长度（画面宽归一化）；0.10 对远距+指尖朝下偏严
+        private const val AXIS_DOM = 1.15f      // 指尖轴主方向占比（1.3 对「手背朝屏+指尖朝下」偏严，降到 1.15）
         private const val WAVE_R = 0.06f        // 挥手触发位移（指尖相对腕向量变化，画面宽归一化）— 相对信号幅度小于绝对位移，0.08 偏难
         private const val WAVE_COMMIT_R = 0.03f // 挥动committed门槛：峰值过此值后锁定武装方向（挥动中轴自然翻转不再 rearm 吞波）
         private const val WAVE_REARM_R = 0.04f  // 触发后回落到此值内才允许下一波
@@ -147,7 +147,8 @@ class HandGestureDetector(
         private const val WAVE_WRONG_DIR_FLIP = 240f // 反向「朝向翻转」速率门槛（deg/s，5 指中位）：纯平移/惯性尾朝向角几乎不变不计，真正甩腕换向才报
         private const val WAVE_JUMP_VEL_MAX = 15.0f // 单帧投影速度上限（宽/s）：慢晃中跟踪器重解释会单帧跳 0.7+ 宽(≈19)，真实挥动实测 ≤6，取 15 兜底
         private const val WAVE_SPAN_JUMP_R = 0.80f  // 手尺寸单帧相对变化上限：手翻转经侧向的真实投影收缩实测最多 ~57%/帧，跟踪器重解释跳变 ≥100%，卡 80%
-        private const val WAVE_MIN_TIPVN = 9.0f     // 触发最低归一化速率（手宽/s，距离不敏感）：实测慢速 ≤7.94（近 5.99 / 远 7.94）、正常挥 ≥10.5
+        private const val WAVE_MIN_TIPVN = 9.0f      // 下一段（W_UP）最低归一化速率：保持指尖朝下时的灵敏度
+        private const val WAVE_MIN_TIPVN_PREV = 9.8f // 上一段（W_DOWN）单独收紧，专压慢速向下挥
         private const val WAVE_WRONG_DIR_GRACE = 3 // 反向位移需连续 3 帧超阈值才报 wrong_dir（防起手瞬间抖动）
         private const val WAVE_VEL_MAX = 6.0f     // 挥动速度上限（画面宽/秒）— 指尖信号幅度×3-5，2.5 会误报正常挥动 too_fast
         private const val ERROR_MIN_INTERVAL_MS = 500L
@@ -228,6 +229,7 @@ class HandGestureDetector(
     private var wLastFireAt = 0L
     private var wFacing = F_NONE
     private var wAxis = A_NONE
+    private var lastLoggedAxis = 99
     private var wProj = 0f
     private var wDStep = 0f
     private var wSpanPx = 0f
@@ -261,6 +263,8 @@ class HandGestureDetector(
     private var wTipLastAt = 0L               // 0=无效（手丢失/复位后重新采样）
     private var wTipSpeedW = 0f               // 5 指中位线性速率（画面宽/s，日志参考）
     private var wTipSpeedNormW = 0f           // 同上按手尺寸归一化（手宽/s：tipV*outWidth/span，距离不敏感）
+    private var wTipSampled = false           // 本帧是否产生新的 tip 速度样本（~100ms 一次）
+    private var wFastRun = 0                  // 连续达到速率阈值的样本数：单帧抖动不算真挥动
     private var wTipVyW = 0f                  // 5 指中位纵向线性速度（画面宽/s，日志参考）
     private var wFlipV = 0f                   // 5 指中位「朝向翻转」速率（deg/s；符号 + = 朝下翻、- = 朝上翻）
     private var wFlipPeak = 0f                // 武装期内允许方向翻转峰值（deg/s，触发日志/慢速闸门校准用）
@@ -883,15 +887,40 @@ class HandGestureDetector(
             else -> F_NONE
         }
 
-        // 4) 指尖轴（图像坐标，镜像后）：wrist(0) → 中指尖(12)——武装硬门槛主信号
-        val ax = (hand[12].x() - hand[0].x()) * outWidth
-        val ay = (hand[12].y() - hand[0].y()) * outHeight
-        val aLen = hypot(ax, ay) / outWidth
+        // 4) 指尖轴（图像坐标，镜像后）：腕(0) → 食/中/环指尖(8/12/16)
+        //    三根手指一起投票：单位方向取平均（三指一致时最强），长度取三指均值；
+        //    单根被遮挡/透视压缩不会像「只取最长」那样把方向带偏
+        var ux = 0f
+        var uy = 0f
+        var lenSum = 0f
+        var axisCount = 0
+        for (ti in intArrayOf(8, 12, 16)) {
+            val tx = (hand[ti].x() - hand[0].x()) * outWidth
+            val ty = (hand[ti].y() - hand[0].y()) * outHeight
+            val len = hypot(tx, ty)
+            if (len < 1f) continue
+            ux += tx / len
+            uy += ty / len
+            lenSum += len
+            axisCount++
+        }
+        if (axisCount > 0) {
+            ux /= axisCount
+            uy /= axisCount
+        }
+        val aLenPx = if (axisCount > 0) lenSum / axisCount else 0f
+        val ax = ux * aLenPx
+        val ay = uy * aLenPx
+        val aLen = aLenPx / outWidth
         wAxis = when {
             aLen < AXIS_MIN -> A_NONE
             abs(ay) >= abs(ax) * AXIS_DOM -> if (ay < 0f) A_UP else A_DOWN
             abs(ax) >= abs(ay) * AXIS_DOM -> if (ax > 0f) A_RIGHT else A_LEFT
             else -> A_NONE
+        }
+        if (wAxis != lastLoggedAxis) {
+            lastLoggedAxis = wAxis
+            Log.d(TAG, ">>> axis ${axisName(wAxis)} ax=${ax.toInt()} ay=${ay.toInt()} len=${fmt3(aLen)}")
         }
 
         // 5) 轴 → 允许的挥手方向（自然动作下 指尖上≈掌心朝屏→向下挥；指尖下≈手背朝屏→向上挥）
@@ -941,6 +970,7 @@ class HandGestureDetector(
                 wTipSpeedW = spd[2]
                 wTipVyW = vy[2]
                 wTipSpeedNormW = if (wSpanPx > 10f) wTipSpeedW * outWidth / wSpanPx else 0f
+                wTipSampled = true
                 saveTipRefs(hand, now)
             }
         }
@@ -1005,10 +1035,12 @@ class HandGestureDetector(
         when (wState) {
             WState.ARMED -> {
                 if (now - wStateSince > WAVE_TIMEOUT_MS) { disarm("timeout"); return false }
+                val minTipVn = if (wArmedDir == W_DOWN) WAVE_MIN_TIPVN_PREV else WAVE_MIN_TIPVN
+                val needFastRun = if (wArmedDir == W_DOWN) 2 else 1
                 // 投影信号 = 指尖相对腕向量的变化量（非绝对坐标）：
                 //   整手平移 → 向量不变 → 不触发（消除「整体平移误识别」）
                 //   手指扫动/以腕为轴翻转 → 向量大幅变化 → 触发（手腕不用大动）
-                val relY = (hand[12].y() - hand[0].y()) * outHeight
+                val relY = (tipRefY(hand) - hand[0].y()) * outHeight
                 val dyPx = relY - wAnchorY
                 wProj = (if (wArmedDir == W_DOWN) dyPx else -dyPx) / outWidth
                 if (wProj > wMaxProj) wMaxProj = wProj
@@ -1018,6 +1050,12 @@ class HandGestureDetector(
                 if (allowedFlip > wFlipPeak) wFlipPeak = allowedFlip
                 if (wTipSpeedW > wTipSpeedPeak) wTipSpeedPeak = wTipSpeedW
                 if (wTipSpeedNormW > wTipSpeedNormPeak) wTipSpeedNormPeak = wTipSpeedNormW
+
+                // 慢挥/单帧抖动通常只有一个速度尖峰；要求连续 2 个采样周期都达标才算真挥动
+                if (wTipSampled) {
+                    if (wTipSpeedNormW >= minTipVn) wFastRun++ else wFastRun = 0
+                    wTipSampled = false
+                }
 
                 // 轴翻转硬条件：武装 W_UP（下一段）时指尖从朝下翻到朝上才允许触发，
                 // 武装 W_DOWN（上一段）时翻到朝下——手原地微动/纯平移轴不翻转 → 拒绝
@@ -1091,13 +1129,14 @@ class HandGestureDetector(
                 }
 
                 // 触发：峰值达阈值 + 轴已翻转（真挥动的必要条件）+ 方向稳定 + 速率达标（慢挥不触发）
-                if (wMaxProj >= WAVE_R && wAxisFlipped && wDirStable >= WAVE_DIR_STABLE) {
-                    if (wTipSpeedNormPeak >= WAVE_MIN_TIPVN) {
+                if (wMaxProj >= WAVE_R && wAxisFlipped && wDirStable >= WAVE_DIR_STABLE && wFastRun >= needFastRun) {
+                    if (wTipSpeedNormPeak >= minTipVn) {
                         fireWave(wArmedDir, wMaxProj, now)
                         return true
                     } else if (!wSlowRejectLogged) {
                         wSlowRejectLogged = true
-                        Log.d(TAG, ">>> wave slow_reject peakTipV=${fmt3(wTipSpeedPeak)} peakTipVn=${fmt3(wTipSpeedNormPeak)} " +
+                        Log.d(TAG, ">>> wave slow_reject dir=${dirName(wArmedDir)} peakTipV=${fmt3(wTipSpeedPeak)} " +
+                                "peakTipVn=${fmt3(wTipSpeedNormPeak)} min=${fmt3(minTipVn)} run=$wFastRun " +
                                 "span=${wSpanPx.toInt()}px proj=${fmt3(wProj)} max=${fmt3(wMaxProj)}")
                     }
                 }
@@ -1108,8 +1147,8 @@ class HandGestureDetector(
                 // FIRED 总窗口：超时回 IDLE（须 > WAVE_SWITCH_HOLD_MS，防静止换向检测被超时抢先）
                 if (now - wLastFireAt > FIRED_WINDOW_MS) { disarm("fired_window"); return false }
                 // 与 ARMED 同信号：指尖相对腕向量变化
-                val relX = (hand[12].x() - hand[0].x()) * outWidth
-                val relY = (hand[12].y() - hand[0].y()) * outHeight
+                val relX = (tipRefX(hand) - hand[0].x()) * outWidth
+                val relY = (tipRefY(hand) - hand[0].y()) * outHeight
                 val dyPx = relY - wAnchorY
                 wProj = (if (wArmedDir == W_DOWN) dyPx else -dyPx) / outWidth
 
@@ -1182,8 +1221,8 @@ class HandGestureDetector(
                 wArmedDir = wDir
                 wWrongDirFrames = 0
                 // 锚点=指尖相对腕向量（px）：投影量=向量变化，整手平移不产生变化→不误触发
-                wAnchorX = (hand[12].x() - hand[0].x()) * outWidth
-                wAnchorY = (hand[12].y() - hand[0].y()) * outHeight
+                wAnchorX = (tipRefX(hand) - hand[0].x()) * outWidth
+                wAnchorY = (tipRefY(hand) - hand[0].y()) * outHeight
                 wStateSince = now
                 wProj = 0f
                 wLastProjForVel = 0f
@@ -1193,6 +1232,8 @@ class HandGestureDetector(
                 wTipSpeedPeak = 0f
                 wTipSpeedNormPeak = 0f
                 wSlowRejectLogged = false
+                wTipSampled = false
+                wFastRun = 0
                 wSpanPrevPx = 0f
                 wRearmAt = 0L   // 首次武装不等待最小武装时间
                 wDirStable = 0
@@ -1264,6 +1305,8 @@ class HandGestureDetector(
         wTipSpeedPeak = 0f
         wTipSpeedNormPeak = 0f
         wSlowRejectLogged = false
+        wTipSampled = false
+        wFastRun = 0
         wSpanPrevPx = 0f
         wRearmAt = now
         wDirStable = 0
@@ -1278,6 +1321,8 @@ class HandGestureDetector(
         Log.d(TAG, ">>> wave disarm reason=$reason")
         recognitionCallback?.onDisarm(reason)
         wState = WState.IDLE
+        wFastRun = 0
+        wTipSampled = false
         wDwellFrames = 0
         wLastDir = 0
         wArmedDir = 0
@@ -1291,6 +1336,8 @@ class HandGestureDetector(
         wTipSpeedPeak = 0f
         wTipSpeedNormPeak = 0f
         wSlowRejectLogged = false
+        wTipSampled = false
+        wFastRun = 0
         wSpanPrevPx = 0f
         wPoseFrames = 0
         wDwellMissFrames = 0
@@ -1429,6 +1476,14 @@ class HandGestureDetector(
 
     private fun mapAxis(v: Float): Float =
         ((v - CURSOR_MIN) / (CURSOR_MAX - CURSOR_MIN)).coerceIn(0f, 1f)
+
+    // 指尖参考点取食/中/环三指均值：手背朝屏+指尖朝下时中指尖常被透视压缩，
+    // 只用 12 会让投影信号变小、下一段很难触发
+    private fun tipRefX(hand: List<NormalizedLandmark>): Float =
+        (hand[8].x() + hand[12].x() + hand[16].x()) / 3f
+
+    private fun tipRefY(hand: List<NormalizedLandmark>): Float =
+        (hand[8].y() + hand[12].y() + hand[16].y()) / 3f
 
     private fun enterCursorMode(palmX: Float, palmY: Float, now: Long) {
         cursorMode = true
@@ -1602,6 +1657,8 @@ class HandGestureDetector(
         wTipSpeedNormPeak = 0f
         wTipSpeedNormW = 0f
         wSlowRejectLogged = false
+        wTipSampled = false
+        wFastRun = 0
         wPoseFrames = 0
         wDwellMissFrames = 0
         wFiredMoveAt = 0L

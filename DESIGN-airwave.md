@@ -5,6 +5,7 @@
 > 2026-10-30 代码审查修订：多手改为**纯中心优先**（`setNumHands(2)`）、远距门持续 800ms 弹一次 error 6、CameraManager 暂停/fps/ImageProxy 加固；改动**待装机回归**。
 > 2026-10-30 补充修复（v1.1.1）：多手时 `worldLandmarks` / `handedness` 改为与主手**同索引**取值（此前固定 `[0]`），修复双 hands 下挥动/朝向误用另一只手导致的左右手手感不一致。
 > 2026-11-03 开源整理：新增 LICENSE / PRIVACY / NOTICE、代码头 SPDX 署名、APK 内作者记号（assets + BuildConfig）；手势逻辑未改。
+> 2026-11-03 v1.1.2：挥动方向改为食/中/环三指单位方向平均 + 平均长度；上一段速度阈值 9.8 且要求连续 2 个样本；详见 `AirGesture-HANDOFF.md` §18.9。
 > 范围：**只改 mi14**（mi9 不同步）。旧的纵向位移通道（`V_THRESHOLD`）已彻底移除。
 > 基线：`HandGestureDetector.kt`（v1 重写 → v1.3 加固）/ `AirGestureService.kt` / `WaveHintOverlay.kt`（顶部胶囊；mi14 已删 `FloatingBall.kt`/`AIKeyReceiver.kt`）
 
