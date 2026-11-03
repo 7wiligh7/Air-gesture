@@ -2,7 +2,7 @@
 
 用**前置摄像头 + MediaPipe** 识别手掌动作，通过**无障碍服务**注入滑动、点击、返回，实现不碰屏幕的隔空操作。**无需 root**。
 
-> 作者：**7wiligh7** · 许可证：**MIT** · [隐私说明](PRIVACY.md) · [第三方声明](NOTICE) · [发布流程](RELEASING.md)
+> 作者：**7wiligh7** · 许可证：**MIT** · [下载 Releases](https://github.com/7wiligh7/Air-gesture/releases) · [隐私说明](PRIVACY.md) · [第三方声明](NOTICE) · [发布流程](RELEASING.md)
 
 **Android 8.0+** · **arm64-v8a** · 无 root · 无网络权限 · 画面仅本地处理
 
