@@ -92,7 +92,10 @@ class HandGestureDetector(
         private const val FIST_MIN_FRAMES = 8
         private const val FIST_HOLD_MS = 300L
         private const val CURSOR_EMA = 0.4f
-        private const val CURSOR_GAIN = 1.7f
+        // 掌心归一化坐标 → 屏幕：只把画面中间的 30%..70% 映射到全屏，
+        // 手不必伸到画面边缘就能覆盖四角，避免指尖/手腕出界导致丢手或姿态失效
+        private const val CURSOR_MIN = 0.30f
+        private const val CURSOR_MAX = 0.70f
         private const val OK_TOUCH_RATIO = 0.20f  // OK 手势：拇指-食指指尖接触阈值（距离/腕-中指MCP；0.35 过松，接近即误判返回）
         private const val POSE_LOG_EVERY = 5      // OK/握拳候选调试日志节流
         private const val PERF_LOG_EVERY = 30
@@ -1425,7 +1428,7 @@ class HandGestureDetector(
     }
 
     private fun mapAxis(v: Float): Float =
-        (0.5f + (v - 0.5f) * CURSOR_GAIN).coerceIn(0f, 1f)
+        ((v - CURSOR_MIN) / (CURSOR_MAX - CURSOR_MIN)).coerceIn(0f, 1f)
 
     private fun enterCursorMode(palmX: Float, palmY: Float, now: Long) {
         cursorMode = true

@@ -21,6 +21,7 @@ import android.provider.Settings
 import android.view.View
 import android.view.Window
 import android.widget.FrameLayout
+import android.widget.CompoundButton
 import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
@@ -50,6 +51,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var debugText: TextView
     private lateinit var enableSwitch: Switch
     private lateinit var signatureText: TextView
+
+    private val switchListener = CompoundButton.OnCheckedChangeListener { _, isChecked ->
+        if (isChecked) enableGesture() else disableGesture()
+    }
 
     private val handler = Handler(Looper.getMainLooper())
 
@@ -108,9 +113,7 @@ class MainActivity : AppCompatActivity() {
                 "v${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) · " +
                 "build ${BuildConfig.BUILD_TIME} · ${BuildConfig.GIT_COMMIT}"
 
-        enableSwitch.setOnCheckedChangeListener { _, isChecked ->
-            if (isChecked) enableGesture() else disableGesture()
-        }
+        enableSwitch.setOnCheckedChangeListener(switchListener)
 
         val root = findViewById<View>(R.id.rootLayout)
         ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
@@ -223,7 +226,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateUI(running: Boolean) {
+        // 程序化改开关时先摘掉监听器，避免把状态同步当成用户操作再发一次 toggle
+        enableSwitch.setOnCheckedChangeListener(null)
         enableSwitch.isChecked = running
+        enableSwitch.setOnCheckedChangeListener(switchListener)
         if (running) {
             cameraArea.visibility = View.VISIBLE
             statusText.text = "状态：手势检测已启用"

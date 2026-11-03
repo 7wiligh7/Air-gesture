@@ -20,6 +20,7 @@ import androidx.camera.camera2.interop.Camera2Interop
 import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
 import com.airgesture.detector.HandGestureDetector
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -37,7 +38,7 @@ class CameraManager(
     private var imageAnalysis: ImageAnalysis? = null
     private var camera: Camera? = null
     private var analysisExecutor: ExecutorService = Executors.newSingleThreadExecutor()
-    private val lifecycleOwner = FakeLifecycleOwner()
+    private var lifecycleOwner = FakeLifecycleOwner()
     private val mainHandler = Handler(Looper.getMainLooper())
 
     @Volatile
@@ -59,13 +60,18 @@ class CameraManager(
     fun start() {
         started = true
         paused = false
+        // stop() 会把 lifecycle 置为 DESTROYED（终态），复用同一个 LifecycleOwner 再绑定会抛
+        // "Trying to create LifecycleCamera with destroyed lifecycle" —— 重建一个新的
+        if (lifecycleOwner.lifecycle.currentState == Lifecycle.State.DESTROYED) {
+            lifecycleOwner = FakeLifecycleOwner()
+        }
         lifecycleOwner.onStart()
         lifecycleOwner.onResume()
 
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
         cameraProviderFuture.addListener({
             cameraProvider = cameraProviderFuture.get()
-            if (!paused) bindCameraUseCases()
+            if (started && !paused) bindCameraUseCases()
         }, ContextCompat.getMainExecutor(context))
     }
 
@@ -91,6 +97,7 @@ class CameraManager(
     }
 
     private fun bindCameraUseCases() {
+        if (!started || paused) return
         val cameraProvider = cameraProvider ?: return
         cameraProvider.unbindAll()
 

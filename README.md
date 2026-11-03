@@ -29,7 +29,7 @@
 | 手掌左挥 / 右挥 | 下一页 / 上一页 | 需要较大幅度（前摄 FOV 限制） |
 | **OK 手势** | 返回 | 拇指-食指成圈，其余三指伸展 |
 | **握拳** | 显示准星光标 | 5 指参与，真握拳才响应 |
-| 握拳移动 | 光标跟随 | 增益 1.7，可覆盖全屏四角 |
+| 握拳移动 | 光标跟随 | 画面中心 30%–70% 映射全屏，手不用贴边 |
 | 张开手指 | 点击 | 保持 ≥300ms，连续 3 帧确认 |
 
 ## 工作原理
@@ -135,7 +135,7 @@ debug 包使用 `CN=Android Debug` 证书，仅用于开发测试，请勿转载
 ## 兼容性
 
 - **小米 14 Pro**：✅ 主力开发与实测（HyperOS / Android 14）
-- 其他 Android 8.0+ / arm64 / 带前摄的机型：理论上可运行，但距离门、光标增益可能需要按日志重新标定
+- 其他 Android 8.0+ / arm64 / 带前摄的机型：理论上可运行，但距离门、光标映射范围可能需要按日志重新标定
 - Android 8/9：`startForeground` 兼容已修，但尚未在 8/9 真机验证
 - Mi 9 为独立项目，不在本仓库
 
@@ -154,7 +154,7 @@ gradlew.bat assembleDebug --no-daemon
 
 # Release 包（需要本地 keystore.properties，见 RELEASING.md）
 gradlew.bat assembleRelease --no-daemon
-# 产物：app\build\outputs\apk\release\app-release.apk（约 12.6MB，R8 混淆 + 资源压缩）
+# 产物：app\build\outputs\apk\release\app-release.apk（约 18.2MB，与 debug 同代码）
 ```
 
 > `abiFilters 'arm64-v8a'`：APK 只含真机架构，代价是 x86 模拟器装不了。
@@ -235,7 +235,7 @@ adb logcat -s HandGestureDetector:D CameraManager:D AirGestureService:D
   - 开源整理：MIT LICENSE、隐私说明、第三方声明、SPDX 代码头、APK 内作者记号
   - 隐私加固：显式移除 MediaPipe 合入的 `INTERNET` / `ACCESS_NETWORK_STATE`，`allowBackup=false`
   - 发布签名：独立 release keystore（RSA 4096，`CN=7wiligh7`）
-  - Release 开启 R8 混淆 + 资源压缩，移除 `v/d/i` 调试日志（保留 `w/e` 排障）
+  - Release 暂不开 R8/资源压缩，与 debug 同代码，优先保证功能一致（日志暂保留）
 - **1.1.0**（versionCode 5）
   - 隔空挥动 v1.3：官方规格对齐、回程消除、慢挥/跳变防护
   - OK 手势收紧、握拳 5 指严格化、熄屏暂停、远距门控、多手选择

@@ -74,6 +74,7 @@ class AirGestureService : AccessibilityService(), GestureCallback, CursorCallbac
             when (intent?.action) {
                 ACTION_TOGGLE -> {
                     val enable = intent.getBooleanExtra("enable", true)
+                    Log.d(TAG, "TOGGLE enable=$enable")
                     if (enable) enterGestureMode() else exitGestureMode()
                 }
             }
