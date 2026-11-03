@@ -55,7 +55,21 @@ gradlew.bat assembleDebug --no-daemon
 # 产物：app\build\outputs\apk\debug\app-debug.apk（arm64-v8a，约 21.5MB）
 ```
 
-> 已配置 `abiFilters 'arm64-v8a'`：APK 只含真机架构（35.2MB → 19.6MB）；代价是 x86 模拟器装不了。
+> 已配置 `abiFilters 'arm64-v8a'`：APK 只含真机架构；debug 约 21.5MB，release 约 17.4MB。代价是 x86 模拟器装不了。
+
+### 发布签名
+
+官方 APK 使用独立 release 证书（APK Signature Scheme v2，RSA 4096）：
+
+- 证书主体：`CN=7wiligh7, OU=AirGesture, O=7wiligh7, C=CN`
+- 证书 SHA-256：`951013058dd41b353e82184346b891a7991715534432810a9cc39661f1c66063`
+- 校验命令：
+
+  ```powershell
+  apksigner verify --print-certs AirGesture-*.apk
+  ```
+
+> debug 包使用 `CN=Android Debug` 证书，仅用于开发测试，请勿转载。维护者的构建与发布步骤见 [RELEASING.md](RELEASING.md)。
 
 ## 安装与启用
 
@@ -159,6 +173,7 @@ adb logcat -s HandGestureDetector:D CameraManager:D AirGestureService:D
   - 多手索引修复：`worldLandmarks` / `handedness` 与主手同索引，修复左右手感不一致
   - 日志增强：`multi_hand` 输出每只手标签/置信度，`wave` / `wave arm` 输出 `hand=`
   - 开源整理：MIT LICENSE、隐私说明、第三方声明、代码头 SPDX 署名、APK 内作者记号（`assets/AUTHORSHIP.txt` + `BuildConfig.AUTHOR/BUILD_TIME/GIT_COMMIT`）、`.gitignore`
+  - 发布签名：独立 release keystore（RSA 4096，`CN=7wiligh7`），release 包不再使用 debug 证书
 - **1.1.0-mi14**（versionCode 5）
   - 隔空挥动 v1.3：官方规格对齐、回程消除、慢挥 / 跟踪跳变三防护
   - 2026-10-19：OK 手势判定收紧、握拳 5 指严格化 + 点击消抖、熄屏暂停相机、远距门控、多手选择、APK 仅 arm64（19.6MB）
@@ -170,6 +185,7 @@ adb logcat -s HandGestureDetector:D CameraManager:D AirGestureService:D
 - `DESIGN-airwave.md` — 隔空挥动设计 v1.3（状态机 / 参数 / 校准记录）
 - `PROGRESS.md` — v1.2.0 交付记录（历史）
 - `PRIVACY.md` / `NOTICE` — 隐私说明与第三方许可
+- `RELEASING.md` — 维护者构建与发布流程（签名、校验、上传）
 - `AirGesture-HANDOFF.md` — 开发交接文档（本地维护，不随仓库发布）
 
 ## 版权与许可证
