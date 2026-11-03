@@ -27,5 +27,5 @@ Third-party components
    Attribution: "Font Awesome Free by Fonticons, Inc."
 
 Full license texts:
-- Apache License 2.0: https://www.apache.org/licenses/LICENSE-2.0
+- Apache License 2.0: `app/src/main/assets/licenses/Apache-2.0.txt`（同时打包进 APK）
 - CC BY 4.0: https://creativecommons.org/licenses/by/4.0/
