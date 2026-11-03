@@ -154,7 +154,7 @@ gradlew.bat assembleDebug --no-daemon
 
 # Release 包（需要本地 keystore.properties，见 RELEASING.md）
 gradlew.bat assembleRelease --no-daemon
-# 产物：app\build\outputs\apk\release\app-release.apk（约 12.1MB，R8 混淆 + 资源压缩）
+# 产物：app\build\outputs\apk\release\app-release.apk（约 12.6MB，R8 混淆 + 资源压缩）
 ```
 
 > `abiFilters 'arm64-v8a'`：APK 只含真机架构，代价是 x86 模拟器装不了。
