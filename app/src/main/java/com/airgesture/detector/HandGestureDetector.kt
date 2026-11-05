@@ -265,6 +265,7 @@ class HandGestureDetector(
     private var wTipSpeedNormW = 0f           // 同上按手尺寸归一化（手宽/s：tipV*outWidth/span，距离不敏感）
     private var wTipSampled = false           // 本帧是否产生新的 tip 速度样本（~100ms 一次）
     private var wFastRun = 0                  // 连续达到速率阈值的样本数：单帧抖动不算真挥动
+    private var wSwitchDirFrames = 0         // FIRED 期反向轴连续帧数：允许更快的换向 rearm
     private var wTipVyW = 0f                  // 5 指中位纵向线性速度（画面宽/s，日志参考）
     private var wFlipV = 0f                   // 5 指中位「朝向翻转」速率（deg/s；符号 + = 朝下翻、- = 朝上翻）
     private var wFlipPeak = 0f                // 武装期内允许方向翻转峰值（deg/s，触发日志/慢速闸门校准用）
@@ -1151,6 +1152,7 @@ class HandGestureDetector(
                 val relY = (tipRefY(hand) - hand[0].y()) * outHeight
                 val dyPx = relY - wAnchorY
                 wProj = (if (wArmedDir == W_DOWN) dyPx else -dyPx) / outWidth
+                if (wDir != 0 && wDir != wArmedDir) wSwitchDirFrames++ else wSwitchDirFrames = 0
 
                 // 静止检测：手停住（帧间位移 < FIRED_HOLD_EPS）持续累计 → 区分「回程」与「停顿换向」
                 if (wFiredMoveAt == 0L) {
@@ -1163,22 +1165,28 @@ class HandGestureDetector(
                 }
 
                 // ① 回程静默复位：投影回落近锚点 → 同向 rearm（回程不算触发，连挥循环）
+                //    如果此时指尖轴已经连续 2 帧翻到反侧，直接按反方向 rearm，下一段不用等 900ms
                 if (wProj < WAVE_REARM_R) {
-                    rearmWave(wArmedDir, relX, relY, now)
-                    lastWaveState = "REARM same ${dirName(wArmedDir)} proj=${fmt3(wProj)}"
+                    val nextDir = if (wSwitchDirFrames >= 2) wDir else wArmedDir
+                    rearmWave(nextDir, relX, relY, now)
+                    lastWaveState = "REARM same ${dirName(nextDir)} proj=${fmt3(wProj)}"
                     return true
                 }
 
-                // ② 末姿势静止保持 ≥ WAVE_SWITCH_HOLD_MS（且仍在触发峰值附近、轴已翻向反侧）
-                //    → 明确换向意图：以反方向 rearm，随后的挥出（含回程继续）按新方向判定
-                if (now - wFiredMoveAt >= WAVE_SWITCH_HOLD_MS &&
-                    wDir != 0 && wDir != wArmedDir &&
-                    wProj >= wFiredPeakProj - WAVE_REARM_R
-                ) {
-                    Log.d(TAG, ">>> wave switch-rearm dir=${dirName(wDir)} still=${now - wFiredMoveAt}ms")
-                    rearmWave(wDir, relX, relY, now)
-                    lastWaveState = "REARM switch ${dirName(wDir)}"
-                    return true
+                // ② 静止保持 ≥ WAVE_SWITCH_HOLD_MS：
+                //    - 轴已翻向反侧且仍在峰值附近 → 换向 rearm
+                //    - 否则直接退出 FIRED，避免白占 1600ms 阻塞后续手势
+                if (now - wFiredMoveAt >= WAVE_SWITCH_HOLD_MS) {
+                    if (wDir != 0 && wDir != wArmedDir &&
+                        wProj >= wFiredPeakProj - WAVE_REARM_R
+                    ) {
+                        Log.d(TAG, ">>> wave switch-rearm dir=${dirName(wDir)} still=${now - wFiredMoveAt}ms")
+                        rearmWave(wDir, relX, relY, now)
+                        lastWaveState = "REARM switch ${dirName(wDir)}"
+                        return true
+                    }
+                    disarm("fired_still")
+                    return false
                 }
 
                 lastWaveState = "FIRED proj=${fmt3(wProj)} still=${now - wFiredMoveAt}ms"
@@ -1234,6 +1242,7 @@ class HandGestureDetector(
                 wSlowRejectLogged = false
                 wTipSampled = false
                 wFastRun = 0
+                wSwitchDirFrames = 0
                 wSpanPrevPx = 0f
                 wRearmAt = 0L   // 首次武装不等待最小武装时间
                 wDirStable = 0
@@ -1279,6 +1288,7 @@ class HandGestureDetector(
         }
         wLastFireAt = now
         wState = WState.FIRED
+        wSwitchDirFrames = 0
         // 挥动方向 → 内容方向 → 手势名：WAVE DOWN=内容下移=上一段 prev；WAVE UP=内容上移=下一段 next
         val name = if (dir == W_DOWN) "prev" else "next"
         Log.d(TAG, ">>> GESTURE: $name by=wave_v1 dir=${dirName(dir)} proj=${fmt3(proj)} " +
@@ -1307,6 +1317,7 @@ class HandGestureDetector(
         wSlowRejectLogged = false
         wTipSampled = false
         wFastRun = 0
+        wSwitchDirFrames = 0
         wSpanPrevPx = 0f
         wRearmAt = now
         wDirStable = 0
@@ -1323,6 +1334,7 @@ class HandGestureDetector(
         wState = WState.IDLE
         wFastRun = 0
         wTipSampled = false
+        wSwitchDirFrames = 0
         wDwellFrames = 0
         wLastDir = 0
         wArmedDir = 0
@@ -1659,6 +1671,7 @@ class HandGestureDetector(
         wSlowRejectLogged = false
         wTipSampled = false
         wFastRun = 0
+        wSwitchDirFrames = 0
         wPoseFrames = 0
         wDwellMissFrames = 0
         wFiredMoveAt = 0L

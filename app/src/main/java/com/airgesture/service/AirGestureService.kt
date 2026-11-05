@@ -43,6 +43,7 @@ class AirGestureService : AccessibilityService(), GestureCallback, CursorCallbac
         private const val NOTIFICATION_ID = 1
         private const val CONTROL_PERMISSION = "com.airgesture.permission.CONTROL_GESTURE"
         const val ACTION_TOGGLE = "com.airgesture.TOGGLE_GESTURE"
+        const val ACTION_DISABLE_SELF = "com.airgesture.DISABLE_SELF"
         private val ERROR_DISARM_REASONS = setOf("too_close", "too_far", "wrong_dir", "too_fast")
         var isRunning = false
             private set
@@ -61,6 +62,7 @@ class AirGestureService : AccessibilityService(), GestureCallback, CursorCallbac
     private var waveHint: WaveHintOverlay? = null
     private var lastCursorX = 0.5f
     private var lastCursorY = 0.5f
+    private var gameGuardTriggered = false
     private var lastGestureLabel = ""
     private var foregroundStarted = false
 
@@ -77,6 +79,15 @@ class AirGestureService : AccessibilityService(), GestureCallback, CursorCallbac
                     Log.d(TAG, "TOGGLE enable=$enable")
                     if (enable) enterGestureMode() else exitGestureMode()
                 }
+                ACTION_DISABLE_SELF -> {
+                    Log.d(TAG, "DISABLE_SELF requested")
+                    exitGestureMode()
+                    try {
+                        disableSelf()
+                    } catch (e: Exception) {
+                        Log.e(TAG, "disableSelf failed", e)
+                    }
+                }
             }
         }
     }
@@ -84,11 +95,13 @@ class AirGestureService : AccessibilityService(), GestureCallback, CursorCallbac
     override fun onServiceConnected() {
         super.onServiceConnected()
         Log.d(TAG, "Service connected")
+        gameGuardTriggered = false
         isRunning = true
         instance = this
         gestureExecutor = GestureExecutor(this)
 
         val filter = IntentFilter(ACTION_TOGGLE)
+        filter.addAction(ACTION_DISABLE_SELF)
         // debug 保持 EXPORTED：shell `am broadcast`（adb 装机自动化）在 Android 13+ 送不进 NOT_EXPORTED；
         // release 收紧：API 33+ NOT_EXPORTED，API 26-32 用 signature 权限保护（第三方 App/adb 都发不进来）。
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -228,12 +241,19 @@ class AirGestureService : AccessibilityService(), GestureCallback, CursorCallbac
         val togglePending = PendingIntent.getBroadcast(this, 0, toggleIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
 
+        val disableIntent = Intent(ACTION_DISABLE_SELF).apply {
+            setPackage(packageName)
+            data = Uri.parse("com.airgesture://disable-self")
+        }
+        val disablePending = PendingIntent.getBroadcast(this, 2, disableIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+
         val openIntent = Intent(this, MainActivity::class.java)
         val openPending = PendingIntent.getActivity(this, 1, openIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
 
         val title = if (gestureActive) "隔空手势 · 已开启" else "隔空手势 · 已关闭"
-        val text = if (gestureActive) "上下挥手翻页，点击右侧按钮关闭" else "点击右侧按钮开启"
+        val text = if (gestureActive) "上下挥手翻页；右侧可关闭或停用无障碍" else "点击开启；右侧可停用无障碍"
 
         val builder = Notification.Builder(this, channelId)
             .setContentTitle(title)
@@ -242,6 +262,7 @@ class AirGestureService : AccessibilityService(), GestureCallback, CursorCallbac
             .setOngoing(true)
             .setContentIntent(openPending)
             .addAction(0, if (gestureActive) "关闭" else "开启", togglePending)
+            .addAction(0, "停用无障碍", disablePending)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             builder.setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE)
@@ -272,6 +293,17 @@ class AirGestureService : AccessibilityService(), GestureCallback, CursorCallbac
         // 关闭态保留普通通知，通知栏仍可一键开启
         nm.notify(NOTIFICATION_ID, notification)
         return true
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        Log.d(TAG, "Task removed -> exit gesture + disableSelf")
+        exitGestureMode()
+        try {
+            disableSelf()
+        } catch (e: Exception) {
+            Log.e(TAG, "disableSelf failed", e)
+        }
+        super.onTaskRemoved(rootIntent)
     }
 
     override fun onDestroy() {
@@ -377,6 +409,26 @@ class AirGestureService : AccessibilityService(), GestureCallback, CursorCallbac
     }
 
     override fun onHandDetected() {}
-    override fun onAccessibilityEvent(event: AccessibilityEvent?) {}
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        if (event?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
+        val pkg = event.packageName?.toString() ?: return
+        if (pkg == packageName || gameGuardTriggered) return
+        if (!GameGuard.isGame(this, pkg)) return
+
+        gameGuardTriggered = true
+        Log.d(TAG, "Game foreground: $pkg -> stop gesture + disable accessibility")
+        exitGestureMode()
+        Toast.makeText(
+            this,
+            "检测到游戏，AirGesture 已停用；退出游戏后可在设置中重新开启",
+            Toast.LENGTH_LONG
+        ).show()
+        try {
+            // 真的关掉无障碍服务，而不是隐藏；游戏里不会再有注入手势
+            disableSelf()
+        } catch (e: Exception) {
+            Log.e(TAG, "disableSelf failed", e)
+        }
+    }
     override fun onInterrupt() {}
 }

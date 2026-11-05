@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">AirGesture</string>
-    <string name="accessibility_service_description">隔空手势服务 - 通过应用内或通知栏开关启用，手掌挥动控制屏幕</string>
+    <string name="accessibility_service_description">隔空手势服务 - 通过应用内或通知栏开关启用；检测到游戏时会自动停用</string>
 </resources>
