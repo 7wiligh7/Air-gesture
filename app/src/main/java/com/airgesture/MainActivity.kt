@@ -243,12 +243,17 @@ class MainActivity : AppCompatActivity() {
     private fun performDisableAll() {
         val svc = AirGestureService.instance
         if (svc != null) {
-            svc.disableForGame()
+            svc.disableForGame(killProcess = false)
             updateUI(false)
-            Toast.makeText(this, "已停用手势并关闭无障碍", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "已停用手势、关闭无障碍并退出", Toast.LENGTH_SHORT).show()
         } else {
             Toast.makeText(this, "无障碍未开启，正在打开系统设置", Toast.LENGTH_LONG).show()
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+        }
+        // 关闭当前任务，从最近任务里移除，然后结束进程
+        finishAndRemoveTask()
+        handler.post {
+            android.os.Process.killProcess(android.os.Process.myPid())
         }
     }
 

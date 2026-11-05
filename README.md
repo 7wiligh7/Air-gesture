@@ -246,6 +246,9 @@ adb logcat -s HandGestureDetector:D CameraManager:D AirGestureService:D
 
 ## 版本记录
 
+- **1.1.6**（versionCode 11）
+  - 「彻底关闭」现在会：退出手势 → 关闭无障碍 → 结束进程 → 从最近任务移除
+  - 通知栏/快捷磁贴/游戏守护/清后台同样走 `disableForGame()`，不再留下后台进程
 - **1.1.5**（versionCode 10）
   - App 内新增**「彻底关闭 AirGesture」按钮**：确认后退出手势并关闭无障碍，不需要时一键退出
   - 按钮走 `disableForGame()`，与快捷磁贴/通知栏/清后台一致

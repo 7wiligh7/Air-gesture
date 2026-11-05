@@ -19,6 +19,7 @@ import android.content.pm.ServiceInfo
 import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
+import android.os.Process
 import android.provider.Settings
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
@@ -193,14 +194,17 @@ class AirGestureService : AccessibilityService(), GestureCallback, CursorCallbac
         Log.d(TAG, "Gesture mode OFF")
     }
 
-    /** 通知栏 / 快捷设置磁贴 / 游戏守护共用：退出手势并真正关闭无障碍 */
-    fun disableForGame() {
-        Log.d(TAG, "disableForGame")
+    /** 通知栏 / 快捷设置磁贴 / 游戏守护 / App 内按钮共用：退出手势、关闭无障碍、结束进程 */
+    fun disableForGame(killProcess: Boolean = true) {
+        Log.d(TAG, "disableForGame kill=$killProcess")
         exitGestureMode()
         try {
             disableSelf()
         } catch (e: Exception) {
             Log.e(TAG, "disableSelf failed", e)
+        }
+        if (killProcess) {
+            Process.killProcess(Process.myPid())
         }
     }
 
@@ -302,9 +306,9 @@ class AirGestureService : AccessibilityService(), GestureCallback, CursorCallbac
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
         Log.d(TAG, "Task removed -> exit gesture + disableSelf")
         disableForGame()
-        super.onTaskRemoved(rootIntent)
     }
 
     override fun onDestroy() {
