@@ -81,12 +81,7 @@ class AirGestureService : AccessibilityService(), GestureCallback, CursorCallbac
                 }
                 ACTION_DISABLE_SELF -> {
                     Log.d(TAG, "DISABLE_SELF requested")
-                    exitGestureMode()
-                    try {
-                        disableSelf()
-                    } catch (e: Exception) {
-                        Log.e(TAG, "disableSelf failed", e)
-                    }
+                    disableForGame()
                 }
             }
         }
@@ -198,6 +193,17 @@ class AirGestureService : AccessibilityService(), GestureCallback, CursorCallbac
         Log.d(TAG, "Gesture mode OFF")
     }
 
+    /** 通知栏 / 快捷设置磁贴 / 游戏守护共用：退出手势并真正关闭无障碍 */
+    fun disableForGame() {
+        Log.d(TAG, "disableForGame")
+        exitGestureMode()
+        try {
+            disableSelf()
+        } catch (e: Exception) {
+            Log.e(TAG, "disableSelf failed", e)
+        }
+    }
+
     /** 熄屏暂停检测：手机锁屏装在兜里时相机+推理仍在跑，是最大的耗电来源 */
     private fun registerScreenReceiver() {
         if (screenReceiver != null) return
@@ -261,8 +267,8 @@ class AirGestureService : AccessibilityService(), GestureCallback, CursorCallbac
             .setSmallIcon(R.drawable.ic_notification)
             .setOngoing(true)
             .setContentIntent(openPending)
-            .addAction(0, if (gestureActive) "关闭" else "开启", togglePending)
             .addAction(0, "停用无障碍", disablePending)
+            .addAction(0, if (gestureActive) "关闭" else "开启", togglePending)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             builder.setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE)
@@ -297,12 +303,7 @@ class AirGestureService : AccessibilityService(), GestureCallback, CursorCallbac
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         Log.d(TAG, "Task removed -> exit gesture + disableSelf")
-        exitGestureMode()
-        try {
-            disableSelf()
-        } catch (e: Exception) {
-            Log.e(TAG, "disableSelf failed", e)
-        }
+        disableForGame()
         super.onTaskRemoved(rootIntent)
     }
 
@@ -417,18 +418,13 @@ class AirGestureService : AccessibilityService(), GestureCallback, CursorCallbac
 
         gameGuardTriggered = true
         Log.d(TAG, "Game foreground: $pkg -> stop gesture + disable accessibility")
-        exitGestureMode()
         Toast.makeText(
             this,
             "检测到游戏，AirGesture 已停用；退出游戏后可在设置中重新开启",
             Toast.LENGTH_LONG
         ).show()
-        try {
-            // 真的关掉无障碍服务，而不是隐藏；游戏里不会再有注入手势
-            disableSelf()
-        } catch (e: Exception) {
-            Log.e(TAG, "disableSelf failed", e)
-        }
+        // 真的关掉无障碍服务，而不是隐藏；游戏里不会再有注入手势
+        disableForGame()
     }
     override fun onInterrupt() {}
 }
