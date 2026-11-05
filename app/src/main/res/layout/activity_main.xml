@@ -204,6 +204,17 @@
                 android:layout_marginTop="4dp" />
         </LinearLayout>
 
+        <Button
+            android:id="@+id/disableAllButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:backgroundTint="#2D1B1B"
+            android:text="彻底关闭 AirGesture（停用无障碍）"
+            android:textAllCaps="false"
+            android:textColor="#FF7B72"
+            android:textSize="13sp" />
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

@@ -117,6 +117,7 @@ debug 包使用 `CN=Android Debug` 证书，仅用于开发测试，请勿转载
 
 - **通知栏「停用无障碍」**：进游戏前手动点一下，最稳；部分系统（如 HyperOS 游戏模式）可能不把窗口事件交给无障碍，自动检测不一定生效
 - **快捷设置磁贴「AirGesture」**：下拉状态栏 → 编辑快捷开关 → 添加 AirGesture；点一下即停用手势并关闭无障碍
+- **App 内「彻底关闭 AirGesture」按钮**：确认后退出手势并关闭无障碍
 - **从最近任务划掉 AirGesture**：`onTaskRemoved()` 会退出手势并关闭无障碍
 
 目的：避免在竞技游戏里误用注入手势而触发反作弊或封号。游戏期间 AirGesture 完全不可用。
@@ -245,6 +246,9 @@ adb logcat -s HandGestureDetector:D CameraManager:D AirGestureService:D
 
 ## 版本记录
 
+- **1.1.5**（versionCode 10）
+  - App 内新增**「彻底关闭 AirGesture」按钮**：确认后退出手势并关闭无障碍，不需要时一键退出
+  - 按钮走 `disableForGame()`，与快捷磁贴/通知栏/清后台一致
 - **1.1.4**（versionCode 9）
   - 新增**快捷设置磁贴**「AirGesture」：下拉状态栏点一下即可停用手势并关闭无障碍
   - 通知栏 action 顺序调整：「停用无障碍」放第一位，HyperOS 折叠时也能点到

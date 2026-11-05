@@ -23,8 +23,10 @@ import android.view.Window
 import android.widget.FrameLayout
 import android.widget.CompoundButton
 import android.widget.Switch
+import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -51,6 +53,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var debugText: TextView
     private lateinit var enableSwitch: Switch
     private lateinit var signatureText: TextView
+    private lateinit var disableAllButton: Button
 
     private val switchListener = CompoundButton.OnCheckedChangeListener { _, isChecked ->
         if (isChecked) enableGesture() else disableGesture()
@@ -112,6 +115,9 @@ class MainActivity : AppCompatActivity() {
         signatureText.text = "© 2026 ${BuildConfig.AUTHOR} · MIT License\n" +
                 "v${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) · " +
                 "build ${BuildConfig.BUILD_TIME} · ${BuildConfig.GIT_COMMIT}"
+
+        disableAllButton = findViewById(R.id.disableAllButton)
+        disableAllButton.setOnClickListener { confirmDisableAll() }
 
         enableSwitch.setOnCheckedChangeListener(switchListener)
 
@@ -223,6 +229,27 @@ class MainActivity : AppCompatActivity() {
         handOverlayView.clearResult()
         debugText.text = ""
         gestureText.text = ""
+    }
+
+    private fun confirmDisableAll() {
+        AlertDialog.Builder(this)
+            .setTitle("彻底关闭 AirGesture？")
+            .setMessage("会退出手势模式并关闭无障碍服务；之后需要到系统设置重新开启。")
+            .setPositiveButton("彻底关闭") { _, _ -> performDisableAll() }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
+    private fun performDisableAll() {
+        val svc = AirGestureService.instance
+        if (svc != null) {
+            svc.disableForGame()
+            updateUI(false)
+            Toast.makeText(this, "已停用手势并关闭无障碍", Toast.LENGTH_LONG).show()
+        } else {
+            Toast.makeText(this, "无障碍未开启，正在打开系统设置", Toast.LENGTH_LONG).show()
+            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+        }
     }
 
     private fun updateUI(running: Boolean) {
