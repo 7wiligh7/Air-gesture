@@ -173,6 +173,7 @@ class AirGestureService : AccessibilityService(), GestureCallback, CursorCallbac
             putExtra("running", true)
         })
         Log.d(TAG, "Gesture mode ON")
+        GestureTileService.requestUpdate(this)
     }
 
     fun exitGestureMode() {
@@ -192,6 +193,7 @@ class AirGestureService : AccessibilityService(), GestureCallback, CursorCallbac
             putExtra("running", false)
         })
         Log.d(TAG, "Gesture mode OFF")
+        GestureTileService.requestUpdate(this)
     }
 
     /** 通知栏 / 快捷设置磁贴 / 游戏守护 / App 内按钮共用：退出手势、关闭无障碍、结束进程 */

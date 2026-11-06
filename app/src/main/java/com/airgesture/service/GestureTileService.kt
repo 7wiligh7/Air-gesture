@@ -7,11 +7,14 @@
 package com.airgesture.service
 
 import android.app.PendingIntent
+import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.graphics.drawable.Icon
 import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
+import android.util.Log
 import com.airgesture.MainActivity
 import com.airgesture.R
 
@@ -21,9 +24,27 @@ import com.airgesture.R
  */
 class GestureTileService : TileService() {
 
+    companion object {
+        private const val TAG = "GestureTile"
+
+        /** 手势模式切换后让快捷面板重新读取磁贴状态（否则不会亮/灭） */
+        fun requestUpdate(context: Context) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                try {
+                    requestListeningState(
+                        context,
+                        ComponentName(context, GestureTileService::class.java)
+                    )
+                } catch (_: Exception) {
+                }
+            }
+        }
+    }
+
     override fun onStartListening() {
         super.onStartListening()
         val active = AirGestureService.isGestureMode
+        Log.d(TAG, "onStartListening active=$active")
         qsTile?.apply {
             state = if (active) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
             label = "AirGesture"
@@ -38,6 +59,7 @@ class GestureTileService : TileService() {
     override fun onClick() {
         super.onClick()
         val svc = AirGestureService.instance
+        Log.d(TAG, "onClick active=${AirGestureService.isGestureMode} svc=${svc != null}")
         if (AirGestureService.isGestureMode && svc != null) {
             // 手势开着：一键彻底关闭（停手势 + 关无障碍 + 结束进程）
             svc.disableForGame()

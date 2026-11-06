@@ -29,8 +29,8 @@ android {
         applicationId "com.airgesture"
         minSdk 26
         targetSdk 35
-        versionCode 12
-        versionName "1.1.7"
+        versionCode 13
+        versionName "1.1.8"
 
         // 作者记号（BuildConfig.AUTHOR / BUILD_TIME / GIT_COMMIT），构建时写入
         buildConfigField "String", "AUTHOR", "\"7wiligh7\""

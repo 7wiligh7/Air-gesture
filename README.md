@@ -246,6 +246,9 @@ adb logcat -s HandGestureDetector:D CameraManager:D AirGestureService:D
 
 ## 版本记录
 
+- **1.1.8**（versionCode 13）
+  - 快捷磁贴状态实时刷新：手势开/关后立即亮起/熄灭，不再需要重开面板
+  - 图标保持实心手掌；开启时为系统高亮态，关闭时为普通态
 - **1.1.7**（versionCode 12）
   - 快捷设置磁贴图标改为实心手掌，不再用细线圆图标
   - 磁贴点击逻辑：手势开着 → 彻底关闭；没开 → 直接打开 App
